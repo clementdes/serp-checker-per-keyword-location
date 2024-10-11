@@ -3,6 +3,10 @@ import requests
 import json
 import pandas as pd
 from urllib.parse import urlparse
+from datetime import datetime, timedelta
+import hashlib
+import pickle
+import os
 
 # Liste des villes
 with open('villes.txt', 'r') as file:
@@ -25,6 +29,44 @@ st.markdown(
 
 st.divider()
 
+# Dossier de cache
+CACHE_DIR = "cache"
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+# Fonction pour obtenir le chemin de cache basé sur une clé unique
+def get_cache_path(key):
+    hash_key = hashlib.md5(key.encode()).hexdigest()
+    return os.path.join(CACHE_DIR, f"{hash_key}.pkl")
+
+# Fonction pour lire le cache
+def read_cache(key):
+    path = get_cache_path(key)
+    if os.path.exists(path):
+        with open(path, 'rb') as f:
+            cache_data = pickle.load(f)
+            if cache_data['expiry'] > datetime.now():
+                return cache_data['data']
+    return None
+
+# Fonction pour écrire dans le cache
+def write_cache(key, data, ttl=86400):
+    path = get_cache_path(key)
+    expiry = datetime.now() + timedelta(seconds=ttl)
+    with open(path, 'wb') as f:
+        pickle.dump({'data': data, 'expiry': expiry}, f)
+
+# Fonction pour effacer le cache
+def clear_cache():
+    for filename in os.listdir(CACHE_DIR):
+        file_path = os.path.join(CACHE_DIR, filename)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+
+# Bouton pour effacer le cache
+if st.sidebar.button("Clear Cache"):
+    clear_cache()
+    st.sidebar.success("Cache effacé avec succès.")
+
 # Demander à l'utilisateur de saisir le nom de domaine à vérifier
 domain_name = st.text_input("Entrez le nom de domaine à vérifier (par exemple, 'example.com')")
 
@@ -44,11 +86,20 @@ def get_google_top_20(keyword, location, api_key):
     if not api_key:
         st.error("Clé API ValueSERP manquante.")
         return None
+
+    # Générer une clé unique pour le cache
+    cache_key = f"{keyword}_{location}_{api_key}"
+    cached_results = read_cache(cache_key)
+    if cached_results:
+        return cached_results
+
     search_url = f"https://api.valueserp.com/search?api_key={api_key}&q={keyword}&location={location}&num=30"
     try:
         response = requests.get(search_url)
         response.raise_for_status()
-        return response.json().get('organic_results', [])
+        results = response.json().get('organic_results', [])
+        write_cache(cache_key, results)
+        return results
     except requests.RequestException as e:
         st.error(f"Erreur lors de la recherche avec ValueSERP : {e}")
         return None
