@@ -25,6 +25,9 @@ st.markdown(
 
 st.divider()
 
+# Demander à l'utilisateur de saisir le nom de domaine à vérifier
+domain_name = st.text_input("Entrez le nom de domaine à vérifier (par exemple, 'example.com')")
+
 # Demander à l'utilisateur de saisir jusqu'à 15 combinaisons mot-clé + localisation
 combinations = []
 for i in range(15):
@@ -33,9 +36,8 @@ for i in range(15):
     if keyword and location:
         combinations.append((keyword, location[0]))
 
-# Interface utilisateur pour la clé API et l'URL utilisateur
+# Interface utilisateur pour la clé API
 valueserp_api_key = st.sidebar.text_input("Entrez votre clé API ValueSERP", type="password")
-user_url = st.text_input("Votre URL")
 
 # Fonction pour obtenir les résultats Google
 def get_google_top_20(keyword, location, api_key):
@@ -68,27 +70,16 @@ if display_results and combinations and valueserp_api_key:
             df = pd.DataFrame(data)
             st.table(df)
 
-            # Vérifier si l'URL de l'utilisateur est dans le top 30
-            if user_url:
+            # Vérifier la présence du nom de domaine fourni par l'utilisateur
+            if domain_name:
                 urls = [result['link'] for result in results]
-                parsed_user_url = urlparse(user_url)
-                user_domain = parsed_user_url.netloc
-
-                # Vérifier l'URL exacte
-                if user_url in urls:
-                    rank = urls.index(user_url) + 1
-                    st.write(f"Votre URL est classée #{rank} dans les résultats de Google.")
-                else:
-                    st.write("Votre URL n'est pas dans le top 30 des résultats de Google.")
-
-                # Vérifier la présence d'une autre URL du même domaine
                 domain_present = False
                 for i, url in enumerate(urls):
                     parsed_url = urlparse(url)
-                    if parsed_url.netloc == user_domain:
-                        st.write(f"Une autre URL du même domaine ({user_domain}) est classée #{i + 1}: {url}")
+                    if parsed_url.netloc == domain_name:
+                        st.write(f"Votre domaine apparaît en position #{i + 1} avec l'URL : {url}")
                         domain_present = True
                         break
 
                 if not domain_present:
-                    st.write(f"Aucune autre URL du même domaine ({user_domain}) n'a été trouvée dans le top 30 des résultats de Google.")
+                    st.write(f"Le domaine ({domain_name}) n'a pas été trouvé dans le top 30 des résultats de Google.")
