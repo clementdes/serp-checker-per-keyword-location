@@ -76,7 +76,7 @@ if display_results and combinations and valueserp_api_key:
                 domain_present = False
                 for i, url in enumerate(urls):
                     parsed_url = urlparse(url)
-                    if parsed_url.netloc == domain_name:
+                    if domain_name in parsed_url.netloc:
                         st.write(f"Votre domaine apparaît en position #{i + 1} avec l'URL : {url}")
                         domain_present = True
                         break
